@@ -1,2 +1,4 @@
-# Virtuelle Umgebung
+.vscode
 .venv
+__pycache__
+settings.json
