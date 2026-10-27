@@ -1,2 +1,4 @@
 # Virtuelle Umgebung
 .venv
+.idea
+.vscode
