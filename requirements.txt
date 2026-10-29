@@ -4,3 +4,8 @@ joblib>=1.6.0
 matplotlib>=3.11.2
 ipykernel
 requests
+protobuf
+gtfs-realtime-bindings
+sqlalchemy
+psycopg[binary]
+python-dotenv
