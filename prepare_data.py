@@ -351,6 +351,8 @@ def main():
             ON CONFLICT ({quoted_keys})
             DO UPDATE SET {updates}
         """))
+        
+        # Temporäre Tabelle löschen
         connection.execute(text(f"DROP TABLE {quoted_stage}"))
 
     # Clean up: Verbindung schließen
