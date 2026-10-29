@@ -286,16 +286,21 @@ def prepare_data():
     return rows
 
 def main():
+    # Dataframe erstellen für DB
     rows = prepare_data()
     df = pd.DataFrame(rows)
 
+    # Env variable laden für DB connection
     load_dotenv(dotenv_path=Path(__file__).resolve().with_name(".env"))
     if df.empty:
         print("Keine Rows zum Speichern vorhanden.", flush=True)
         return rows
 
+    # Duplikate entfernen
     keys = ["service_date", "trip_id", "stop_sequence", "stop_id",]
     df = df.drop_duplicates(subset=keys, keep="last")
+    
+    # Verbindung zur Datenbank herstellen und Tabelle erstellen, falls sie nicht existiert
     engine = create_engine(os.environ["DATABASE_URL"])
     table_name = "traffic_data"
     constraint_name = "traffic_data_trip_stop_unique"
@@ -307,6 +312,8 @@ def main():
         quoted_table = connection.dialect.identifier_preparer.quote(table_name)
         quoted_constraint = connection.dialect.identifier_preparer.quote(constraint_name)
         quoted_keys = ", ".join(connection.dialect.identifier_preparer.quote(key) for key in keys)
+        
+        # Prüfen, ob der Unique Constraint bereits existiert und falls nicht, hinzufügen
         connection.execute(text(f"""
             DO $$
             BEGIN
@@ -322,6 +329,7 @@ def main():
             END $$;
         """))
 
+        # Temporäre Tabelle für Upsert erstellen und Daten einfügen
         staging_table = "traffic_data_stage"
         df.to_sql(staging_table, connection, if_exists="replace", index=False,)
         quoted_stage = connection.dialect.identifier_preparer.quote(staging_table)
@@ -334,6 +342,8 @@ def main():
             f"EXCLUDED.{connection.dialect.identifier_preparer.quote(column)}"
             for column in update_columns
         )
+        
+        # Upsert durchführen: Wenn ein Konflikt auftritt, werden die vorhandenen Zeilen aktualisiert
         connection.execute(text(f"""
             INSERT INTO {quoted_table} ({columns})
             SELECT {columns}
@@ -343,6 +353,7 @@ def main():
         """))
         connection.execute(text(f"DROP TABLE {quoted_stage}"))
 
+    # Clean up: Verbindung schließen
     engine.dispose()
     print(f"{len(df)} Rows per Upsert gespeichert.", flush=True)
     return rows
