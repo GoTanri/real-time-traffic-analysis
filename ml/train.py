@@ -1,59 +1,51 @@
+import os
+from pathlib import Path
+import joblib
+import numpy as np
 import pandas as pd
+from dotenv import load_dotenv
+from sqlalchemy import create_engine
 
+from sklearn.compose import ColumnTransformer
 
-from sklearn.dummy import DummyRegressor
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error
+# Einstellungen
+BASE_DIR = Path(__file__).resolve().parent
+RESULTS_DIR = BASE_DIR / "results"
+MODEL_PATH = RESULTS_DIR / "verspaetung_modell.joblib"
+METRICS_PATH = RESULTS_DIR / "modell_metriken.csv"
+PLOT_PATH = RESULTS_DIR / "vorhersage_vs_ist.png"
 
-# BSP DATEN
-df = pd.DataFrame({
-    "hour": [6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
-    "previous_delay": [0, 2, 5, 4, 1, 0, 3, 2, 1, 4],
-    "rain_mm": [0, 0, 1, 2, 0, 0, 1, 0, 0, 2],
-    "delay_min": [1, 3, 7, 6, 2, 1, 4, 3, 2, 6],
-})
+RANDOM_STATE = 42
+TEST_ANTEIL = 0.2                  # ca 20 Prozent der Tage bzw fahrten als Test
+MAX_ABS_VERSPAETUNG_MIN = 60       # Extremwerte darüber werden entfernt 
+KEIN_EVENT_DISTANZ_KM = 10.0       # Ersatzwert, wenn kein Ereignis in der Nähe
 
-features = ["hour", "previous_delay", "rain_mm"]
-target = "delay_min"
+NUM_FEATURES = [
+    "stunde",
+    "wochentag",
+    "ist_wochenende",
+    "stop_sequence",
+    "direction_id",
+    "temperature_2m",
+    "precipitation",
+    "wind_speed_10m",
+    "roadwork_count",
+    "has_roadwork",
+    "nearest_roadwork_distance_km",
+    "traffic_event_count",
+    "has_traffic_event",
+    "nearest_traffic_distance_km",
+    "alert_count",
+    "has_service_alert",
+    "has_technical_alert",
+]
+CAT_FEATURES = ["route_short_name", "route_type"]
 
-X = df[features]
-y = df[target]
-
-# Chronologische Aufteilung
-split = int(len(df) * 0.8) # len(df) Anzahl der zeilen 
-
-X_train, X_test = X.iloc[:split], X.iloc[split:]
-y_train, y_test = y.iloc[:split], y.iloc[split:]
-
-# 1. Baseline: Vorhersage des Trainingsmittelwerts
-baseline = DummyRegressor(strategy="mean")
-baseline.fit(X_train, y_train)
-
-# 2. Lineare Regression
-model = LinearRegression()
-model.fit(X_train, y_train)
-
-# Prognosen
-baseline_predictions = baseline.predict(X_test)
-predictions = model.predict(X_test)
-
-fehler = pd.DataFrame({
-    "echt": y_test.values,
-    "vorhergesagt": predictions.round(1),
-    "abw": (y_test.values - predictions).round(1),
-})
-   
-# Bewertung
-print(
-    "Baseline MAE:",
-    round(mean_absolute_error(y_test, baseline_predictions), 2)
-)
-
-print(
-    "Linear Regression MAE:",
-    round(mean_absolute_error(y_test, predictions), 2)
-)
-
-print("Vorhersagen:", predictions)
-
-print(fehler)
+# Daten laden
+def load_data() -> pd.DataFrame:
+    load_dotenv(dotens_path=BASE_DIR /".env")
+    engine = create_engine(os.environ["DATABASE_URL"])
+    df = pd.read_sql("SELECT * FROM traffic_data", engine)
+    engine.dispose()
+    print(f"{len(df)} Rows aus traffic_data geladen.")
+    return df
