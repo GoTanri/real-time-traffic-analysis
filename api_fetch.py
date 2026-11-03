@@ -524,16 +524,6 @@ def fetch_realtime_heilbronn(
                 "alert_ids": "|".join(
                     alert["alert_id"] for alert in matching_alerts
                 ),
-                "alert_causes": "|".join(sorted({
-                    alert["cause"]
-                    for alert in matching_alerts
-                    if alert["cause"]
-                })),
-                "alert_effects": "|".join(sorted({
-                    alert["effect"]
-                    for alert in matching_alerts
-                    if alert["effect"]
-                })),
                 "alert_headers": "|".join(
                     alert["header_text"]
                     for alert in matching_alerts
