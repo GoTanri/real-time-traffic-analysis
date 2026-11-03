@@ -98,5 +98,4 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
 
 # Test für die ersten 5 rows
 df_features = build_features(df_data)
-
-print(df_features.head(5))
+display(df_features.head(5))
