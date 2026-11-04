@@ -517,10 +517,6 @@ def fetch_realtime_heilbronn(
                 "delay_seconds": delay_seconds,
                 "alert_count": len(matching_alerts),
                 "has_service_alert": bool(matching_alerts),
-                "has_technical_alert": any(
-                    alert["cause"] == "TECHNICAL_PROBLEM"
-                    for alert in matching_alerts
-                ),
                 "alert_ids": "|".join(
                     alert["alert_id"] for alert in matching_alerts
                 ),
