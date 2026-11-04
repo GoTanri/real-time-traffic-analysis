@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 
 from sklearn.compose import ColumnTransformer
+from sklearn.model_selection import GroupShuffleSplit
 
 # Einstellungen
 BASE_DIR = Path(__file__).resolve().parent
@@ -37,7 +38,6 @@ NUM_FEATURES = [
     "nearest_traffic_distance_km",
     "alert_count",
     "has_service_alert",
-    "has_technical_alert",
 ]
 CAT_FEATURES = ["route_short_name", "route_type"]
 
@@ -52,8 +52,7 @@ def load_data() -> pd.DataFrame:
 
 # Test für die ersten 5 einträgen 
 df_data = load_data()
-display(df_data.head(5))
-
+print(df_data.columns.tolist())
 
 # Features bauen
 def build_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -71,8 +70,7 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     df["ist_wochenende"] = (df["wochentag"] >= 5).astype(float)
 
     # Bool-Spalten -> 0/1
-    for col in ["has_service_alert", "has_technical_alert"]:
-        df[col] = df[col].astype(float)
+    df["has_service_alert"] = df["has_service_alert"].astype(float)
 
     # Ereignis-Flags + Distanz: NULL = Kein Ereignis (nicht 0!)
     df["has_roadwork"] = (df["roadwork_count"].fillna(0) > 0).astype(float)
@@ -99,3 +97,35 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
 # Test für die ersten 5 rows
 df_features = build_features(df_data)
 display(df_features.head(5))
+
+# Teilt Daten in in Train un Test
+def split_data(df: pd.DataFrame):
+    """Zeitlich nach service_date, wenn genug Tage da sind, 
+    sonst fahrtweise (alle Rows einer trip_id bleiben zusammen)"""
+    tage = sorted(df["service_data"].dropna().unique())
+
+    if len(tage) >= 5:
+        n_test = max(1, int(round(len(tage) * TEST_ANTEIL)))
+        test_tage = set(tage[-n_test:])
+        test_mask = df["service_date"].isin(test_tage)
+        train, test = df[~test_mask], df[test_mask]
+        print(f"Zeitlicher Split: Test = letzte {n_test} Tage ({sorted(test_tage)}).")
+    else:
+        gruppen = df["service_date"].astype(str) + "_" + df["trip_id"].astype(str)
+        splitter = GroupShuffleSplit(
+            n_splits=1, test_size=TEST_ANTEIL, random_state=RANDOM_STATE
+        )
+        train_idx, test_idx = next(splitter.split(df, groups=gruppen))
+        train, test = df.iloc[train_idx], df.iloc[test_idx]
+        print("Wenige Tage vorhanden -> fahrtweiser Split (GroupShuffleSplit).")
+
+    print(f"Train: {len(train)} Rows, Test: {len(test)} Rows.")
+    return train, test
+
+# Gebe train und test aus zum testet
+train, test = split_data(df_features)
+print(train.head())
+print(test.head())
+
+
+
