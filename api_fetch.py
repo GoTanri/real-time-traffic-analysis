@@ -516,7 +516,6 @@ def fetch_realtime_heilbronn(
                 "departure_delay_seconds": departure_delay,
                 "delay_seconds": delay_seconds,
                 "alert_count": len(matching_alerts),
-                "has_service_alert": bool(matching_alerts),
                 "alert_ids": "|".join(
                     alert["alert_id"] for alert in matching_alerts
                 ),
